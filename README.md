@@ -42,7 +42,7 @@ An oven timer for Claude, right in your status line. Claude posts an estimate be
 
 - **Orange = paused.** Waiting on you, on a background job, or on a more urgent task stops the clock, so it never counts as overdue.
 - Forgot to post an ETA? After 30 s of work a hook reminds Claude, then every 2 min.
-- **Overdue check-ins** at the deadline, then +30 s, +1 min, +2 min, +4 min, then every 8 min: a notification for you and a nudge for Claude.
+- **Overdue check-ins** at the deadline, then +30 s, +1 min, +2 min, +4 min, then every 8 min: a message in your chat, a desktop notification, and a nudge for the agent that can act on it.
 
 Setup and commands: [`clock-bar/`](clock-bar/). Built on [eta-bar](https://github.com/DrEvil-TitaniumHelix/eta-bar) by DrEvil (MIT).
 

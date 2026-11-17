@@ -35,7 +35,7 @@ CLI: `python <path to clock-bar>/clockbar.py <cmd>`
 
 Hooks pause every bar by themselves when a permission prompt or a question to the user is open (reason: "waiting on you") and resume on the next tool call or prompt.
 
-**Overdue:** check-ins at the deadline, +30 s, +1 min, +2 min, +4 min, then every 8 min. The user gets a Windows notification; you get an `OVERDUE` note from the next hook. Finish, re-estimate with `set`, or say why it needs more time. Never ignore it.
+**Overdue:** check-ins at the deadline, +30 s, +1 min, +2 min, +4 min, then every 8 min. The user sees a `clock bar:` line in the chat at every check-in (plus a desktop notification when idle); the agent that can act on it gets an `OVERDUE` note at its next tool call, and sub-agents get their own. Notes go only to the right agent. Finish, re-estimate with `set`, or say why it needs more time. Never ignore it.
 
 **No ETA posted?** After 30 s of work a hook reminds you, then every 2 min. Post one.
 

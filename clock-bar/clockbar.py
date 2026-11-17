@@ -6,7 +6,7 @@
 #  model  : set "note" 8 [--id ID] | push "note" 8 | done [--id ID] | pause "why" | resume   (needs CLAUDE_CODE_SESSION_ID)
 #  bar    : line <session_id>
 #  other  : watch <session_id> (detached toaster, started by the hooks) | selftest
-import sys, os, json, time, re, argparse, contextlib, subprocess
+import sys, os, json, time, re, argparse, contextlib, subprocess, shutil
 from pathlib import Path
 if sys.stdout:
     sys.stdout.reconfigure(encoding='utf-8')
@@ -57,7 +57,7 @@ def locked(sid):
 # ---------- tasks ----------
 def new_task(s, tid, kind, note, budget, now):
     t = dict(id=tid, kind=kind, note=note, budget=budget, acc=0.0, run_since=now, state='running',
-             reason='', by='', ctx_n=0, toast_n=0, created=now)
+             reason='', by='', ctx_n=0, main_n=0, usr_n=0, toast_n=0, created=now)
     s['tasks'] = [x for x in s.get('tasks', []) if x['id'] != tid] + [t]
     return t
 
@@ -137,7 +137,10 @@ def line(sid, now=None):
 
 # ---------- delivery ----------
 def toast(title, text):
-    if os.name != 'nt': return
+    if os.name != 'nt':
+        if shutil.which('notify-send'):
+            subprocess.Popen(['notify-send', '-u', 'critical', title, text], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return
     ps = ("Add-Type -AssemblyName System.Windows.Forms,System.Drawing;$n=New-Object System.Windows.Forms.NotifyIcon;"
           "$n.Icon=[System.Drawing.SystemIcons]::Warning;$n.Visible=$true;"
           "$n.ShowBalloonTip(9000,$env:CB_T,$env:CB_M,'Warning');Start-Sleep 10;$n.Dispose()")
@@ -148,9 +151,9 @@ def toast(title, text):
 def start_watcher(sid, s, now):
     if now - s.get('beat', 0) < 15: return
     s['beat'] = now
-    if os.name == 'nt':
-        subprocess.Popen([sys.executable, __file__, 'watch', sid], creationflags=0x08000208, close_fds=True,
-                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    kw = dict(creationflags=0x08000208, close_fds=True) if os.name == 'nt' else dict(start_new_session=True)
+    subprocess.Popen([sys.executable, __file__, 'watch', sid], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, **kw)
 
 def watch(sid):
     while True:
@@ -166,19 +169,30 @@ def watch(sid):
             if not ts or now - s.get('updated', now) > 4 * 3600: return
         time.sleep(HOOK_SECS)
 
-def ctx_notes(s, now):
-    out = []
+def notes(s, now, agent_id=''):
+    """-> (for Claude, for the user). The user sees every check-in in the chat; the agent that can act on it is told once."""
+    ctx, usr = [], []
     for t in live(s):
         n = due_count(t, now)
-        if n > t['ctx_n']:
-            t['ctx_n'] = n
-            out.append(f"OVERDUE: '{t['note'] or t['id']}' is {fmt(left(t, now))} past its estimate (check-in {n}). "
-                       f"Finish, or re-estimate with `clockbar set`, or tell the user why it needs more time.")
-    return out
+        if n == 0: continue
+        over, name = fmt(left(t, now)), t['note'] or t['id']
+        if n > t.get('usr_n', 0):
+            t['usr_n'] = n; usr.append(f"clock bar: '{name}' is {over} over its estimate")
+        if t['kind'] == 'agent':
+            if agent_id and t['id'] == f'agent:{agent_id[:6]}':
+                if n > t.get('ctx_n', 0):
+                    t['ctx_n'] = n; ctx.append(f"OVERDUE: you ('{name}') are {over} past your estimate. Wrap up and report, or run `clockbar set --id {t['id']} \"<note>\" <minutes>`.")
+            elif not agent_id and n > t.get('main_n', 0):
+                t['main_n'] = n; ctx.append(f"OVERDUE: sub-agent '{name}' is {over} past its estimate. Check on it, extend it with `clockbar set --id {t['id']} ...`, and tell the user.")
+        elif not agent_id and n > t.get('ctx_n', 0):
+            t['ctx_n'] = n; ctx.append(f"OVERDUE: '{name}' is {over} past its estimate (check-in {n}). Finish, re-estimate with `clockbar set`, or tell the user why it needs more time.")
+    return ctx, usr
 
-def emit(event, msgs):
-    if msgs:
-        print(json.dumps({'hookSpecificOutput': {'hookEventName': event, 'additionalContext': ' '.join(msgs)}}))
+def emit(event, ctx, usr=()):
+    out = {}
+    if ctx: out['hookSpecificOutput'] = {'hookEventName': event, 'additionalContext': ' '.join(ctx)}
+    if usr: out['systemMessage'] = ' | '.join(usr)
+    if out: print(json.dumps(out))
 
 
 # ---------- commands ----------
@@ -243,15 +257,16 @@ def hook(cmd):
         elif cmd == 'agent-stop':
             t = find(s, f"agent:{j.get('agent_id', '?')[:6]}")
             if t: finish(s, t, now)
-        if cmd in ('busy', 'tick') or ev == 'UserPromptSubmit':
-            msgs = ctx_notes(s, now)
+        if cmd in ('busy', 'tick', 'ready'):
+            ctx, usr = notes(s, now, j.get('agent_id') or '')
+            if cmd == 'ready': ctx = []        # a Stop hook must not feed Claude context: that would keep the turn going
             if (cmd == 'tick' and not j.get('agent_id') and s.get('state') == 'busy'
                     and not any(t['kind'] == 'main' for t in live(s))
                     and now - s.get('since', now) > NUDGE_AFTER and now - s.get('nudged', 0) > NUDGE_EVERY):
                 s['nudged'] = now
-                msgs.append(f"CLOCK BAR: this turn has run {fmt(now - s['since'])} with no ETA posted. "
-                            f"Run `python \"{Path(__file__).resolve().as_posix()}\" set \"<3-6 words>\" <minutes>` now.")
-            emit(ev, msgs)
+                ctx.append(f"CLOCK BAR: this turn has run {fmt(now - s['since'])} with no ETA posted. "
+                           f"Run `python \"{Path(__file__).resolve().as_posix()}\" set \"<3-6 words>\" <minutes>` now.")
+            emit(ev, ctx, usr)
         if any(t['state'] == 'running' for t in live(s)): start_watcher(sid, s, now)
 
 def manual(a):
@@ -264,7 +279,7 @@ def manual(a):
             t = find(s, tid)
             if t:
                 resume(t, now)
-                t.update(note=a.note, budget=elapsed(t, now) + mins * 60, ctx_n=0, toast_n=0)
+                t.update(note=a.note, budget=elapsed(t, now) + mins * 60, ctx_n=0, main_n=0, usr_n=0, toast_n=0)
             else:
                 t = new_task(s, tid, 'agent' if tid.startswith('agent:') else 'main', a.note, mins * 60, now)
             print(f"{t['id']}: {a.note} -> {fmt(mins * 60)} left")
@@ -313,6 +328,14 @@ def selftest():
     assert minutes('90s', 0) == 1.5 and minutes('2h', 0) == 120 and minutes('8', 0) == 8
     assert fmt(3720) == '1 h 02 min' and fmt(252) == '4 min 12 s' and fmt(7) == '7 s'
     save(sid, s); assert find(load(sid), 'main') and 'A' in line(sid, t0 + 100)
+    # overdue routing: the user sees every check-in; only the right agent gets the note
+    s = {}; m = new_task(s, 'main', 'main', 'build', 60, t0); g = new_task(s, 'agent:abc123', 'agent', 'Write parser', 60, t0)
+    now = t0 + 100
+    c, u = notes(s, now, '')                              # main agent's turn
+    assert len(u) == 2 and len(c) == 2 and 'sub-agent' in c[1], (c, u)
+    c, u = notes(s, now, 'abc123xyz')                     # the overdue sub-agent's own tool call
+    assert u == [] and len(c) == 1 and c[0].startswith("OVERDUE: you"), (c, u)   # user not told twice; the agent itself is
+    assert notes(s, now, '') == ([], []) and notes(s, now, 'abc123xyz') == ([], [])  # nothing repeats
     print('clockbar selftest OK')
 
 def main():
