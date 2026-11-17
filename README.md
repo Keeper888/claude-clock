@@ -34,6 +34,23 @@ Install this skill and invoke `/clock` once at the start of a session. From that
 
 ---
 
+## New: Clock Bar
+
+An oven timer for Claude, right in your status line. Claude posts an estimate before long work; a bar counts it down, and sub-agents get their own bars on the same line.
+
+```
+Build the API  [████████░░░░] 6 min 40 s left  │  > Explore [█████░] 30 s left          green: running
+Build the API  [████████░░░░] paused · waiting on you · 4 min 02 s left                 orange: paused
+Run migrations [████████████] OVERDUE 1 min 30 s                                        red: overdue
+```
+
+- **Orange = paused.** Waiting on you, on a background job, or on a more urgent task stops the clock, so it never counts as overdue.
+- **Overdue check-ins** at the deadline, then +30 s, +1 min, +2 min, +4 min, then every 8 min: a notification for you and a nudge for Claude.
+
+Setup and commands: [`clock-bar/`](clock-bar/). Built on [eta-bar](https://github.com/DrEvil-TitaniumHelix/eta-bar) by DrEvil (MIT).
+
+---
+
 ## Timeout Reference
 
 The skill teaches Claude this table:
@@ -62,7 +79,7 @@ When in doubt, Claude rounds **up** — it is always better to wait a little lon
 
 ```bash
 # Clone the repo
-git clone https://github.com/AntonioGison/claude-clock.git
+git clone https://github.com/Keeper888/claude-clock.git
 
 # Copy the skill to your Claude skills directory
 cp -r claude-clock/clock ~/.claude/skills/

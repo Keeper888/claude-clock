@@ -18,6 +18,25 @@ You are now in **Time-Aware Mode** for this session. These rules apply to every 
 5. **At the halfway point** of any task expected to take >90s, give a brief progress update.
 6. **Never silently retry** a timed-out command. Always tell the user it timed out first.
 
+7. **Post the estimate on the clock bar** (`clock-bar/clockbar.py`, wired in settings.json, see `clock-bar/README.md`). It is an oven timer in the status line, one bar per task and per sub-agent.
+
+---
+
+## Clock Bar
+
+CLI: `python <path to clock-bar>/clockbar.py <cmd>`
+
+| Situation | Command |
+|---|---|
+| Before a long process (minutes = the long end; the table below gives the numbers) | `set "<3-6 words>" <minutes>`, again when the estimate slips |
+| Waiting on something you don't control (background job, a person) | `pause "<why>"`, then `resume`: the timer stops, the bar turns orange |
+| A more urgent task takes over | `push "<note>" <minutes>`: the old bar pauses (orange); `done` when it ends and the old one resumes |
+| Sub-agent | gets its own bar from the SubagentStart hook with its id; it can `pause --id agent:xxxxxx` / `resume --id ...` |
+
+Hooks pause every bar by themselves when a permission prompt or a question to the user is open (reason: "waiting on you") and resume on the next tool call or prompt.
+
+**Overdue:** check-ins at the deadline, +30 s, +1 min, +2 min, +4 min, then every 8 min. The user gets a Windows notification; you get an `OVERDUE` note from the next hook. Finish, re-estimate with `set`, or say why it needs more time. Never ignore it.
+
 ---
 
 ## Timeout Reference Table
