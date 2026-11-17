@@ -2,7 +2,7 @@
 # Builds on eta-bar by DrEvil (MIT). Stdlib only.
 # State: ~/.claude/clockbar/<session_id>.json, one file per session. Each task has a budget and an
 # ACTIVE clock: pausing stops it, resuming restarts it, so waiting never counts as "overdue".
-#  hooks  : brief | busy | tick | wait | ready | agent-start | agent-stop   (stdin JSON from Claude Code)
+#  hooks  : brief | busy | tick | wait | ready | agent-queue | agent-start | agent-stop   (stdin JSON from Claude Code)
 #  model  : set "note" 8 [--id ID] | push "note" 8 | done [--id ID] | pause "why" | resume   (needs CLAUDE_CODE_SESSION_ID)
 #  bar    : line <session_id>
 #  other  : watch <session_id> (detached toaster, started by the hooks) | selftest
@@ -223,10 +223,19 @@ def hook(cmd):
             for t in live(s):
                 if t['kind'] == 'main' and not bg: finish(s, t, now)
             s.update(state='ready', ready_at=now, bg=bg)
+        elif cmd == 'agent-queue':
+            # PreToolUse on the Agent tool: remember its description so the bar gets a name a human can tell apart.
+            ti = j.get('tool_input') or {}
+            q = [x for x in s.get('pending', []) if now - x['t'] < 120]
+            q.append(dict(type=ti.get('subagent_type') or 'general-purpose', desc=ti.get('description') or '', t=now))
+            s['pending'] = q
         elif cmd == 'agent-start':
             aid, typ = j.get('agent_id', '?'), j.get('agent_type') or 'agent'
             tid = f'agent:{aid[:6]}'
-            new_task(s, tid, 'agent', typ, 60 * float(os.environ.get('CLOCKBAR_AGENT_MIN') or AGENT_MIN.get(typ, 5)), now)
+            q = s.get('pending', [])
+            k = next((i for i, x in enumerate(q) if x['type'] == typ), None)
+            desc = q.pop(k)['desc'] if k is not None else ''
+            new_task(s, tid, 'agent', desc or typ, 60 * float(os.environ.get('CLOCKBAR_AGENT_MIN') or AGENT_MIN.get(typ, 5)), now)
             s.setdefault('state', 'busy'); s.setdefault('since', now)
             print(json.dumps({'hookSpecificOutput': {'hookEventName': 'SubagentStart', 'additionalContext':
                   f"Your timer bar is `{tid}`. If you must wait on something, run `python \"{Path(__file__).resolve().as_posix()}\" pause --id {tid} \"<why>\"` "
@@ -308,7 +317,7 @@ def selftest():
 
 def main():
     c = sys.argv[1] if len(sys.argv) > 1 else ''
-    if c in ('busy', 'tick', 'wait', 'ready', 'agent-start', 'agent-stop'): return hook(c)
+    if c in ('busy', 'tick', 'wait', 'ready', 'agent-queue', 'agent-start', 'agent-stop'): return hook(c)
     if c == 'brief': return print(BRIEF % {'p': Path(__file__).resolve().as_posix()})
     if c == 'line': return print(line(sys.argv[2]))
     if c == 'watch': return watch(sys.argv[2])

@@ -4,7 +4,7 @@ Oven-timer bars for Claude Code, in the status line. Extends the `/clock` skill.
 
 ![Clock bar in the status line: green running, orange paused, red overdue, yellow sub-agent](preview.svg)
 
-- **One bar per task, one per sub-agent**, all on the same status line.
+- **One bar per task, one per sub-agent**, all on the same status line. A sub-agent's bar is named after its description (`Write the parser`), not its type, so two general-purpose agents never look alike.
 - **Paused = the clock stops.** Claude pauses when it waits on something (`pause "why"`), a more urgent task takes over (`push`), or a permission prompt / question is open (automatic, "waiting on you"). Waiting never counts as overdue.
 - **Overdue check-ins** at the deadline, +30 s, +1 min, +2 min, +4 min, then every 8 min: a Windows notification (detached watcher, works during a long tool call) and an `OVERDUE` note in Claude's context from the next hook.
 - Forgot to post an ETA? After 30 s of work a hook reminds Claude, then every 2 min.
