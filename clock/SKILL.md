@@ -37,6 +37,8 @@ Hooks pause every bar by themselves when a permission prompt or a question to th
 
 **Overdue:** check-ins at the deadline, +30 s, +1 min, +2 min, +4 min, then every 8 min. The user gets a Windows notification; you get an `OVERDUE` note from the next hook. Finish, re-estimate with `set`, or say why it needs more time. Never ignore it.
 
+**No ETA posted?** After 30 s of work a hook reminds you, then every 2 min. Post one.
+
 ---
 
 ## Timeout Reference Table

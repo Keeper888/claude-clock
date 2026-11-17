@@ -19,6 +19,7 @@ WAITING = 'waiting on you'
 STEPS = [0, 30, 60, 120, 240]      # overdue check-ins: at the deadline, +30 s, +1 min, +2 min, +4 min, then every 8 min
 AGENT_MIN = {'Explore': 3, 'Plan': 4, 'general-purpose': 8, 'web-fetch': 2}
 HOOK_SECS = 5
+NUDGE_AFTER, NUDGE_EVERY = 30, 120   # no ETA posted this long into a turn -> remind Claude, then every 2 min
 
 
 # ---------- state ----------
@@ -204,7 +205,7 @@ def hook(cmd):
             if s.get('state') != 'busy':
                 keep = lambda t: t['kind'] == 'agent' or s.get('bg')
                 s['tasks'] = [t for t in live(s) if keep(t) and now - t.get('created', now) < 3600]
-                s.update(state='busy', since=now)
+                s.update(state='busy', since=now, nudged=0)
             for t in live(s):
                 if t['reason'] == WAITING: resume(t, now)
         elif cmd == 'tick':
@@ -234,7 +235,14 @@ def hook(cmd):
             t = find(s, f"agent:{j.get('agent_id', '?')[:6]}")
             if t: finish(s, t, now)
         if cmd in ('busy', 'tick') or ev == 'UserPromptSubmit':
-            emit(ev, ctx_notes(s, now))
+            msgs = ctx_notes(s, now)
+            if (cmd == 'tick' and not j.get('agent_id') and s.get('state') == 'busy'
+                    and not any(t['kind'] == 'main' for t in live(s))
+                    and now - s.get('since', now) > NUDGE_AFTER and now - s.get('nudged', 0) > NUDGE_EVERY):
+                s['nudged'] = now
+                msgs.append(f"CLOCK BAR: this turn has run {fmt(now - s['since'])} with no ETA posted. "
+                            f"Run `python \"{Path(__file__).resolve().as_posix()}\" set \"<3-6 words>\" <minutes>` now.")
+            emit(ev, msgs)
         if any(t['state'] == 'running' for t in live(s)): start_watcher(sid, s, now)
 
 def manual(a):
