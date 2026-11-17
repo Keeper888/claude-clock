@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="216" viewBox="0 0 860 216" role="img" aria-label="Clock bar: green running, orange paused, red overdue, yellow sub-agent">
+<rect width="860" height="216" rx="10" fill="#1e1e2e"/>
+<g font-family="Consolas,Menlo,'DejaVu Sans Mono',monospace" font-size="15">
+<text x="24" y="34" fill="#6c7086">claude  |  Sonnet 5.5  |</text>
+<text x="24" y="77" fill="#a6e3a1">Build the API</text>
+<rect x="200" y="63" width="200" height="16" rx="3" fill="#313244"/>
+<rect x="200" y="63" width="80" height="16" rx="3" fill="#a6e3a1"/>
+<text x="416" y="77" fill="#a6e3a1">6 min 40 s left</text>
+<text x="840" y="77" fill="#6c7086" text-anchor="end">running</text>
+<text x="24" y="115" fill="#fab387">Build the API</text>
+<rect x="200" y="101" width="200" height="16" rx="3" fill="#313244"/>
+<rect x="200" y="101" width="80" height="16" rx="3" fill="#fab387"/>
+<text x="416" y="115" fill="#fab387">paused · waiting on you · 4 min 02 s left</text>
+<text x="840" y="115" fill="#6c7086" text-anchor="end">paused</text>
+<text x="24" y="153" fill="#f38ba8">Run migrations</text>
+<rect x="200" y="139" width="200" height="16" rx="3" fill="#313244"/>
+<rect x="200" y="139" width="200" height="16" rx="3" fill="#f38ba8"/>
+<text x="416" y="153" fill="#f38ba8">OVERDUE 1 min 30 s</text>
+<text x="840" y="153" fill="#6c7086" text-anchor="end">overdue</text>
+<text x="24" y="191" fill="#f9e2af">> Explore</text>
+<rect x="200" y="177" width="200" height="16" rx="3" fill="#313244"/>
+<rect x="200" y="177" width="166" height="16" rx="3" fill="#f9e2af"/>
+<text x="416" y="191" fill="#f9e2af">30 s left</text>
+<text x="840" y="191" fill="#6c7086" text-anchor="end">sub-agent, same line</text>
+</g></svg>

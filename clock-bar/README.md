@@ -2,11 +2,7 @@
 
 Oven-timer bars for Claude Code, in the status line. Extends the `/clock` skill. Built on [eta-bar](https://github.com/DrEvil-TitaniumHelix/eta-bar) by DrEvil (MIT).
 
-```
-Build the API  [████████░░░░] 6 min 40 s left  │  > Explore [█████░] 30 s left          green: running
-Build the API  [████████░░░░] paused · waiting on you · 4 min 02 s left                 orange: paused
-Run migrations [████████████] OVERDUE 1 min 30 s                                        red: overdue
-```
+![Clock bar in the status line: green running, orange paused, red overdue, yellow sub-agent](preview.svg)
 
 - **One bar per task, one per sub-agent**, all on the same status line.
 - **Paused = the clock stops.** Claude pauses when it waits on something (`pause "why"`), a more urgent task takes over (`push`), or a permission prompt / question is open (automatic, "waiting on you"). Waiting never counts as overdue.
